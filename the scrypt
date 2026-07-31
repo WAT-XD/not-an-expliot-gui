@@ -1,0 +1,321 @@
+    local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
+local StarterGui = game:GetService("StarterGui")
+
+-- ZMIENNE FUNKCJONALNE
+local flyEnabled = false
+local noclipEnabled = false
+local flySpeed = 2 -- Szybkość przemieszczania się podczas lotu
+
+local flyConnection = nil
+local noclipConnection = nil
+
+-- Funkcja wyświetlająca powiadomienia na ekranie gry
+local function sendNotification(title, text)
+    StarterGui:SetCore("SendNotification", {
+        Title = title,
+        Text = text,
+        Duration = 2
+    })
+end
+
+-- 1. LOGIKA NOCLIP (Klawisz N)
+local function startNoclip()
+    if noclipConnection then noclipConnection:Disconnect() end
+    
+    noclipConnection = RunService.Stepped:Connect(function()
+        if noclipEnabled and LocalPlayer.Character then
+            for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end)
+end
+
+-- 2. LOGIKA FLY (Klawisz F)
+local function startCFrameFly()
+    if flyConnection then flyConnection:Disconnect() end
+    
+    flyConnection = RunService.RenderStepped:Connect(function()
+        local char = LocalPlayer.Character
+        if not char then return end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+
+        if not flyEnabled then
+            if flyConnection then flyConnection:Disconnect() flyConnection = nil end
+            return
+        end
+
+        -- Zatrzymanie grawitacji i opadania postaci
+        root.Velocity = Vector3.new(0, 0, 0)
+        
+        local direction = Vector3.new(0, 0, 0)
+
+        -- Sterowanie WSAD
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then direction = direction + Camera.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then direction = direction - Camera.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then direction = direction - Camera.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then direction = direction + Camera.CFrame.RightVector end
+        
+        -- Wznoszenie i opadanie (Spacja / Lewy Shift)
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then direction = direction + Vector3.new(0, 1, 0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then direction = direction - Vector3.new(0, 1, 0) end
+
+        if direction.Magnitude > 0 then
+            root.CFrame = root.CFrame + (direction.Unit * flySpeed)
+        end
+    end)
+end
+
+-- 3. PRZECHWYTYWANIE KLIKNIĘĆ KLAWIATURY (F oraz N)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end -- Ignoruj, gdy piszesz na czacie
+
+    -- Obsługa klawisza F (Fly)
+    if input.KeyCode == Enum.KeyCode.E then
+        flyEnabled = not flyEnabled
+        if flyEnabled then
+            sendNotification("Fly Module", "Latanie: WŁĄCZONE (WSAD + Spacja/Shift)")
+            startCFrameFly()
+        else
+            sendNotification("Fly Module", "Latanie: WYŁĄCZONE")
+            if flyConnection then flyConnection:Disconnect() flyConnection = nil end
+        end
+    end
+
+    -- Obsługa klawisza N (Noclip)
+    if input.KeyCode == Enum.KeyCode.N then
+        noclipEnabled = not noclipEnabled
+        if noclipEnabled then
+            sendNotification("Noclip Module", "Przenikanie przez ściany: WŁĄCZONE")
+            startNoclip()
+        else
+            sendNotification("Noclip Module", "Przenikanie przez ściany: WYŁĄCZONE")
+            if noclipConnection then noclipConnection:Disconnect() noclipConnection = nil end
+        end
+    end
+end)
+
+-- Bezpieczne resetowanie stanów po śmierci postaci
+LocalPlayer.CharacterRemoving:Connect(function()
+    flyEnabled = false
+    noclipEnabled = false
+    if flyConnection then flyConnection:Disconnect() flyConnection = nil end
+    if noclipConnection then noclipConnection:Disconnect() noclipConnection = nil end
+end)
+
+-- Potwierdzenie załadowania skryptu
+sendNotification("not an exploit", "Skrypt załadowany! F = Lot, N = Noclip")
+
+
+-- Tworzenie interfejsu w standardowym PlayerGui
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Usunięcie starego menu, jeśli istniało
+if PlayerGui:FindFirstChild("UniversalNotAnExploitGui") then
+    PlayerGui.UniversalNotAnExploitGui:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "UniversalNotAnExploitGui"
+ScreenGui.Parent = PlayerGui
+ScreenGui.ResetOnSpawn = false
+ScreenGui.DisplayOrder = 999999 -- Okno na samym wierzchu
+
+-- Główne okno (Frame)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 420, 0, 240)
+MainFrame.Position = UDim2.new(0.5, -210, 0.5, -120)
+MainFrame.BackgroundColor3 = Color3.fromRGB(75, 75, 75)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.ZIndex = 10
+MainFrame.Parent = ScreenGui
+
+-- Pasek tytułowy
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Size = UDim2.new(0, 206, 0, 36)
+TitleLabel.Position = UDim2.new(0, 0, 0, 0)
+TitleLabel.BackgroundColor3 = Color3.fromRGB(54, 54, 54)
+TitleLabel.BorderSizePixel = 0
+TitleLabel.Text = "  not an exploit"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 24
+TitleLabel.Font = Enum.Font.SourceSans
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.ZIndex = 11
+TitleLabel.Parent = MainFrame
+
+-- Przycisk Zamknij (X)
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Size = UDim2.new(0, 25, 0, 25)
+CloseButton.Position = UDim2.new(1, -30, 0, 5)
+CloseButton.BackgroundTransparency = 1
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+CloseButton.TextSize = 18
+CloseButton.Font = Enum.Font.SourceSans
+CloseButton.ZIndex = 11
+CloseButton.Parent = MainFrame
+
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+-- Funkcja pomocnicza do tworzenia przycisków
+local function createMenuButton(name, text, positionY)
+    local Button = Instance.new("TextButton")
+    Button.Name = name
+    Button.Size = UDim2.new(0, 134, 0, 26)
+    Button.Position = UDim2.new(0, 0, 0, positionY)
+    Button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    Button.BorderSizePixel = 0
+    Button.Text = text
+    Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Button.TextSize = 14
+    Button.Font = Enum.Font.SourceSans
+    Button.ZIndex = 11
+    Button.Parent = MainFrame
+    return Button
+end
+
+-- Przyciski (Tekst na pierwszym przycisku zmieniony na aimassist)
+local AimAssistBtn = createMenuButton("AimAssistButton", "aimassist", 48)
+local EspBtn       = createMenuButton("EspButton", "esp", 86)
+local SilentBtn    = createMenuButton("SilentButton", "silentame", 124)
+local JumpBtn      = createMenuButton("InfJumpButton", "infjump", 176)
+
+-- ZMIENNE STATUSU
+local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local infJumpEnabled = false
+local aimAssistEnabled = false
+local espEnabled = false
+local silentAimbotEnabled = false
+
+-- PARAMETRY ASYSTY CELOWANIA (AIM ASSIST)
+--WARZNE--
+local ASSIST_RADIUS = 120 -- Mniejszy promień (asysta aktywuje się tylko blisko celu)
+local ASSIST_STRENGTH = 0.30 -- Siła dociągania (0.08 = delikatna, naturalna asysta)
+
+-- FUNKCJA: Szukanie najbliższego przeciwnika blisko celownika
+local function getClosestPlayer()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+    local mousePos = UserInputService:GetMouseLocation()
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(player.Character.Head.Position)
+                if onScreen then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    if distance < shortestDistance and distance < ASSIST_RADIUS then
+                        shortestDistance = distance
+                        closestPlayer = player
+                    end
+                end
+            end
+        end
+    end
+    return closestPlayer
+end
+
+-- LOGIKA: AIM ASSIST (Subtelne dociąganie kamery)
+RunService.RenderStepped:Connect(function()
+    if aimAssistEnabled then
+        local target = getClosestPlayer()
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            local targetHeadPos = target.Character.Head.Position
+            -- Użycie mniejszej wartości LERp sprawia, że celownik płynnie klei się do wroga, zamiast gwałtownie przeskakiwać
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetHeadPos), ASSIST_STRENGTH)
+        end
+    end
+end)
+
+-- LOGIKA: SILENT AIM
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and silentAimbotEnabled and input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local target = getClosestPlayer()
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.Head.Position)
+        end
+    end
+end)
+
+-- LOGIKA: ESP SYSTEM
+local function applyESP(player)
+    if player == LocalPlayer then return end
+    
+    local function characterAdded(character)
+        if character:FindFirstChild("ESPHighlight") then character.ESPHighlight:Destroy() end
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "ESPHighlight"
+        highlight.FillColor = Color3.fromRGB(0, 0, 255)
+        highlight.FillTransparency = 0.5
+        highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.Enabled = espEnabled
+        highlight.Parent = character
+    end
+
+    if player.Character then characterAdded(player.Character) end
+    player.CharacterAdded:Connect(characterAdded)
+end
+
+Players.PlayerAdded:Connect(applyESP)
+for _, player in ipairs(Players:GetPlayers()) do applyESP(player) end
+
+-- LOGIKA: INFINITE JUMP
+UserInputService.JumpRequest:Connect(function()
+    if infJumpEnabled and LocalPlayer.Character then
+        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+    end
+end)
+
+-- OBSŁUGA INTERFEJSU
+JumpBtn.MouseButton1Click:Connect(function()
+    infJumpEnabled = not infJumpEnabled
+    JumpBtn.BackgroundColor3 = infJumpEnabled and Color3.fromRGB(0, 180, 0) or Color3.fromRGB(0, 0, 0)
+end)
+
+EspBtn.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    EspBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 180, 0) or Color3.fromRGB(0, 0, 0)
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.Character and p.Character:FindFirstChild("ESPHighlight") then
+            p.Character.ESPHighlight.Enabled = espEnabled
+        end
+    end
+end)
+
+AimAssistBtn.MouseButton1Click:Connect(function()
+    aimAssistEnabled = not aimAssistEnabled
+    AimAssistBtn.BackgroundColor3 = aimAssistEnabled and Color3.fromRGB(0, 180, 0) or Color3.fromRGB(0, 0, 0)
+end)
+
+SilentBtn.MouseButton1Click:Connect(function()
+    silentAimbotEnabled = not silentAimbotEnabled
+    SilentBtn.BackgroundColor3 = silentAimbotEnabled and Color3.fromRGB(0, 180, 0) or Color3.fromRGB(0, 0, 0)
+end)
+
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+
+ReplicatedStorage.Remotes.Replication.Fighter.SetControls:FireServer("VR") 
+
